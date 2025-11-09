@@ -8,10 +8,8 @@ from .azure_diet_processor import AzureDietDataProcessor
 def main(req: func.HttpRequest) -> func.HttpResponse:
     """
     Azure Function HTTP trigger for diet data processing operations.
-
-    This function delegates to AzureDietDataProcessor for all data operations.
-    Route parameter `operation` is used to select the operation. See README or
-    the processor for available operations.
+    Enhanced to support frontend dashboard requirements with chart data,
+    filtering, pagination, and comprehensive analytics.
     """
 
     logging.info("Diet data processor HTTP trigger function processed a request.")
@@ -54,7 +52,52 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Route to appropriate function based on operation
-        if operation == "summary":
+        if operation == "nutritional-insights":
+            # Main API for dashboard - returns comprehensive nutritional insights
+            result = processor.get_nutritional_insights()
+
+        elif operation == "chart-data":
+            # Get data formatted for specific chart types
+            chart_type = req.params.get("type", "bar")
+            result = processor.get_chart_data(chart_type)
+
+        elif operation == "recipes":
+            # Enhanced recipes endpoint with pagination and filtering
+            page = int(req.params.get("page", 1))
+            page_size = int(req.params.get("page_size", 20))
+            diet_type = req.params.get("diet_type", "")
+            search_term = req.params.get("search", "")
+            result = processor.get_recipes_paginated(
+                page, page_size, diet_type, search_term
+            )
+
+        elif operation == "clusters":
+            # Clustering analysis for recipe grouping
+            result = processor.get_recipe_clusters()
+
+        elif operation == "diet-types":
+            # Get available diet types for filter dropdown
+            result = processor.get_diet_types()
+
+        elif operation == "bar-chart":
+            # Bar chart data: Average macronutrient content by diet type
+            result = processor.get_bar_chart_data()
+
+        elif operation == "scatter-plot":
+            # Scatter plot data: Nutrient relationships
+            x_nutrient = req.params.get("x", "Protein")
+            y_nutrient = req.params.get("y", "Carbs")
+            result = processor.get_scatter_plot_data(x_nutrient, y_nutrient)
+
+        elif operation == "heatmap":
+            # Heatmap data: Nutrient correlations
+            result = processor.get_heatmap_data()
+
+        elif operation == "pie-chart":
+            # Pie chart data: Recipe distribution by diet type
+            result = processor.get_pie_chart_data()
+
+        elif operation == "summary":
             result = processor.get_diet_summary()
 
         elif operation == "macronutrients":
@@ -65,7 +108,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         elif operation == "top-recipes":
             nutrient = req.params.get("nutrient", "Protein")
-            # Safe parse for n, clamp to sensible maximum
             try:
                 n = int(req.params.get("n", 10))
             except (TypeError, ValueError):
@@ -98,19 +140,38 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         else:
             # Default: return available operations
             result = {
-                "message": "Welcome to Diet Data Processor API",
+                "message": "Welcome to Enhanced Diet Data Processor API",
                 "status": "running",
-                "available_operations": [
-                    "/diet-processor/health",
-                    "/diet-processor/summary",
-                    "/diet-processor/macronutrients",
-                    "/diet-processor/comparison",
-                    "/diet-processor/top-recipes?nutrient=Protein&n=10",
-                    "/diet-processor/cuisine-distribution",
-                    "/diet-processor/nutrient-ranges",
-                    "/diet-processor/recipes/{diet_type}",
-                    "/diet-processor/search?term={search_term}&field=Recipe_name",
-                ],
+                "version": "2.0",
+                "description": "APIs designed for nutritional insights dashboard",
+                "available_operations": {
+                    "health": "/diet-processor/health",
+                    "main_apis": {
+                        "nutritional_insights": "/diet-processor/nutritional-insights",
+                        "recipes": "/diet-processor/recipes?page=1&page_size=20&diet_type={diet}&search={term}",
+                        "clusters": "/diet-processor/clusters",
+                    },
+                    "chart_apis": {
+                        "bar_chart": "/diet-processor/bar-chart",
+                        "scatter_plot": "/diet-processor/scatter-plot?x=Protein&y=Carbs",
+                        "heatmap": "/diet-processor/heatmap",
+                        "pie_chart": "/diet-processor/pie-chart",
+                        "chart_data": "/diet-processor/chart-data?type={bar|scatter|heatmap|pie}",
+                    },
+                    "utility_apis": {
+                        "diet_types": "/diet-processor/diet-types",
+                        "summary": "/diet-processor/summary",
+                        "macronutrients": "/diet-processor/macronutrients",
+                        "nutrient_ranges": "/diet-processor/nutrient-ranges",
+                    },
+                    "legacy_apis": {
+                        "comparison": "/diet-processor/comparison",
+                        "top_recipes": "/diet-processor/top-recipes?nutrient=Protein&n=10",
+                        "cuisine_distribution": "/diet-processor/cuisine-distribution",
+                        "recipes_by_diet": "/diet-processor/recipes/{diet_type}",
+                        "search": "/diet-processor/search?term={search_term}&field=Recipe_name",
+                    },
+                },
             }
 
         return func.HttpResponse(

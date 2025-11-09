@@ -5,3 +5,4 @@ numpy
 azure-storage-blob
 azure-identity
 azure-core
+scikit-learn
